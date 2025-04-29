@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Robot Dashboard V2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+
+    <style>
+        /* Styles remain the same */
+        ::-webkit-scrollbar { width: 8px; height: 8px;}
+        ::-webkit-scrollbar-track { background: #1f2937; border-radius: 4px;}
+        ::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 4px; border: 2px solid #1f2937; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #cbd5e1; }
+        .loader { border: 4px solid #334155; border-top: 4px solid #38bdf8; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; }
+        .loader-center { margin: 2rem auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none; }
+        .card { background-color: #1e293b; border-radius: 0.75rem; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .tab.active { border-color: #38bdf8; color: #e0f2fe; background-color: rgba(14, 165, 233, 0.1); }
+        .btn { @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 transition-colors duration-150; }
+        .btn-primary { @apply text-white bg-sky-600 hover:bg-sky-700 focus:ring-sky-500; }
+        .form-input { @apply block w-full bg-slate-700 border-slate-600 text-slate-200 text-sm rounded-md shadow-sm focus:border-sky-500 focus:ring focus:ring-sky-500 focus:ring-opacity-50; }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+    <div class="max-w-7xl mx-auto">
+
+        <header class="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-center sm:text-left text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-cyan-300 mb-2 sm:mb-0">
+                <i class="fas fa-robot mr-2"></i>Trading Robot Dashboard (Simulator)
+            </h1>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <div class="lg:col-span-1 space-y-6">
+                <div class="card p-5">
+                    <h2 class="text-lg font-semibold text-slate-100 mb-4 border-b border-slate-700 pb-2">
+                        <i class="fas fa-cogs mr-2 text-sky-400"></i>Control Panel
+                    </h2>
+                    <form method="POST" id="tradeForm" class="space-y-4">
+                        <input type="hidden" name="action" value="analyze_trade">
+                        <div>
+                            <label for="chosen_stock" class="block text-sm font-medium text-slate-400 mb-1">Select Stock:</label>
+                            <select name="chosen_stock" id="chosen_stock" class="form-input p-2">
+                                {% for symbol in symbols %}
+                                    <option value="{{ symbol }}" {% if analysis_result and analysis_result.symbol == symbol %}selected{% endif %}>{{ symbol }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" id="tradeButton" class="btn btn-primary w-full">
+                             <i class="fas fa-microchip mr-2"></i>Analyze & Decide
+                        </button>
+                    </form>
+                </div>
+
+                <div class="card p-5">
+                     <h2 class="text-lg font-semibold text-slate-100 mb-4 border-b border-slate-700 pb-2">
+                         <i class="fas fa-chart-pie mr-2 text-cyan-400"></i>Latest Analysis
+                     </h2>
+                     <div id="analysisResultSection" class="text-sm space-y-3">
+                         <div id="analysisLoader" class="loader-center hidden"></div>
+                         <div id="analysisContent">
+                            {% if analysis_result %}
+                                <p class="font-semibold text-lg text-center mb-3">Result for: <span class="text-sky-400">{{ analysis_result.symbol }}</span></p>
+                                {% if analysis_result.error %}
+                                   <div class="bg-red-900 bg-opacity-40 border border-red-700 text-red-300 px-3 py-2 rounded-md text-center">
+                                       <i class="fas fa-exclamation-triangle mr-1"></i>{{ analysis_result.error }}
+                                   </div>
+                                {% else %}
+                                    <div class="space-y-2">
+                                        <p><span class="font-medium text-slate-400 w-28 inline-block">Price Signal:</span> <span class="font-semibold {% if analysis_result.price_signal == 1 %}text-green-400{% elif analysis_result.price_signal == 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ analysis_result.price_signal_text }}</span></p>
+                                        <p><span class="font-medium text-slate-400 w-28 inline-block">News Signal:</span> <span class="font-semibold {% if analysis_result.news_signal == 1 %}text-green-400{% elif analysis_result.news_signal == -1 %}text-red-400{% else %}text-slate-500{% endif %}">{{ analysis_result.news_signal_text }}</span></p>
+                                        <p><span class="font-medium text-slate-400 w-28 inline-block">Price vs SMA:</span>
+                                           <span class="font-semibold
+                                                {% if analysis_result.price_above_sma %}text-green-400
+                                                {% elif analysis_result.price_above_sma == false %}text-red-400
+                                                {% else %}text-slate-500{% endif %}">
+                                                {{ 'Above' if analysis_result.price_above_sma else 'Below' if analysis_result.price_above_sma == false else 'N/A' }}
+                                           </span>
+                                        </p>
+                                        <hr class="border-slate-700 my-3">
+                                        <p class="text-center"><span class="font-medium text-slate-400">Decision:</span> <span class="text-xl font-bold {% if analysis_result.decision == 'BUY' %}text-green-400{% elif analysis_result.decision == 'SELL' %}text-red-400{% else %}text-yellow-400{% endif %}">{{ analysis_result.decision }}</span></p>
+                                        <hr class="border-slate-700 my-3">
+                                        <p class="text-xs text-slate-400"><span class="font-medium">Trade Result:</span>
+                                            <span class="{{ 'text-green-400' if analysis_result.trade_result and analysis_result.trade_result.success else 'text-red-400' if analysis_result.trade_result else 'text-slate-400' }}">
+                                                {{ analysis_result.trade_result.message if analysis_result.trade_result else 'N/A' }}
+                                            </span>
+                                             {% if analysis_result.trade_result and analysis_result.trade_result.order_id %} <span class="text-slate-500">(ID: {{ analysis_result.trade_result.order_id }})</span>{% endif %}
+                                        </p>
+                                        <p class="text-xs text-slate-500 mt-1">Prices Used: {{ analysis_result.prices | default('N/A', true) | truncate(60) }}...</p>
+                                        <details class="text-xs">
+                                            <summary class="cursor-pointer text-slate-500 hover:text-slate-400">News Headlines ({{ analysis_result.news | length }})</summary>
+                                            <ul class="list-disc list-inside ml-4 mt-1 max-h-24 overflow-y-auto text-slate-400">
+                                                 {% for item in analysis_result.news %}<li>{{ item }}</li>{% else %}<li>No headlines found.</li>{% endfor %}
+                                            </ul>
+                                        </details>
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <p class="text-slate-400 text-center py-4">Select a stock and click "Analyze & Decide".</p>
+                            {% endif %}
+                         </div>
+                     </div>
+                </div>
+
+                <div class="card p-5">
+                     <h2 class="text-lg font-semibold text-slate-100 mb-4 border-b border-slate-700 pb-2">
+                         <i class="fas fa-coins mr-2 text-emerald-400"></i>Simulated Portfolio
+                     </h2>
+                     <div id="accountLoader" class="loader-center"></div>
+                     <div id="accountDetails" class="text-sm space-y-2 hidden">
+                     </div>
+                 </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+
+                <div class="card p-5">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
+                         <h2 class="text-lg font-semibold text-slate-100 whitespace-nowrap">
+                             <i class="fas fa-chart-line mr-2 text-violet-400"></i>Live-ish Prices & Chart
+                         </h2>
+                         <div class="w-full sm:w-auto">
+                            <label for="live-stock-select" class="sr-only">Select Stock for Chart:</label>
+                            <select id="live-stock-select" class="form-input p-2 text-xs">
+                                {% for symbol in symbols %}
+                                    <option value="{{ symbol }}">{{ symbol }}</option>
+                                {% endfor %}
+                            </select>
+                         </div>
+                    </div>
+                    <div id="livePricesDisplay" class="text-xs mb-4 space-x-3 overflow-x-auto whitespace-nowrap pb-2 border-b border-slate-700">
+                        <span class="text-slate-500 italic">Loading live prices...</span>
+                    </div>
+                    <div class="relative h-72 md:h-96">
+                         <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card p-5">
+                     <h2 class="text-lg font-semibold text-slate-100 mb-4 border-b border-slate-700 pb-2">
+                         <i class="fas fa-history mr-2 text-amber-400"></i>Trade Log (Simulator)
+                     </h2>
+                     <div class="trade-log-container max-h-80 overflow-y-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-700 sticky top-0">
+                                <tr>
+                                    <th scope="col" class="px-3 py-2">Time</th>
+                                    <th scope="col" class="px-3 py-2">Stock</th>
+                                    <th scope="col" class="px-3 py-2">Decision</th>
+                                    <th scope="col" class="px-3 py-2">Result</th>
+                                    <th scope="col" class="px-3 py-2 hidden md:table-cell">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-700">
+                            {% for entry in trade_log %}
+                                <tr class="hover:bg-slate-700/50">
+                                    <td class="px-3 py-2 whitespace-nowrap">{{ entry.timestamp[5:] }}</td>
+                                    <td class="px-3 py-2 font-medium text-sky-400">{{ entry.symbol }}</td>
+                                    <td class="px-3 py-2 font-semibold {% if entry.decision == 'BUY' %}text-green-400{% elif entry.decision == 'SELL' %}text-red-400{% else %}text-yellow-400{% endif %}">{{ entry.decision }}</td>
+                                    <td class="px-3 py-2">{{ entry.result | truncate(35) }}</td>
+                                    <td class="px-3 py-2 text-slate-500 hidden md:table-cell">{{ entry.details | truncate(50) }}</td>
+                                </tr>
+                            {% else %}
+                                 <tr>
+                                    <td colspan="5" class="px-3 py-4 text-center text-slate-500 italic">No trade log entries yet.</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Live Price Chart ---
+        let priceChart = null;
+        const livePriceData = {};
+        let currentChartSymbol = '{{ symbols[0] }}';
+        let liveDataIntervalId = null;
+        const MAX_CHART_POINTS = 100;
+
+        let symbolsList = [];
+        try {
+            symbolsList = JSON.parse('{{ symbols | tojson | safe }}');
+        } catch (e) {
+            console.error("Error parsing symbols list from Flask:", e);
+            symbolsList = [];
+        }
+        symbolsList.forEach(symbol => { livePriceData[symbol] = []; });
+
+
+        function initializePriceChart() {
+            // console.log("DEBUG: Initializing Price Chart...");
+            const ctx = document.getElementById('priceChart')?.getContext('2d');
+            if (!ctx) { console.error("Chart canvas not found"); return; }
+            if (priceChart) priceChart.destroy();
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'time', time: { unit: 'second', displayFormats: { second: 'HH:mm:ss' } }, ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, autoSkipPadding: 15 }, grid: { color: '#334155' } },
+                        y: { ticks: { color: '#94a3b8', callback: (v) => `$${v.toFixed(2)}` }, grid: { color: '#334155' } }
+                    },
+                    plugins: { legend: { display: false }, tooltip: { enabled: true, mode: 'index', intersect: false, backgroundColor: 'rgba(15, 23, 42, 0.8)', titleColor: '#e2e8f0', bodyColor: '#cbd5e1', borderColor: '#475569', borderWidth: 1, padding: 8, callbacks: { label: (c) => `${c.dataset.label}: $${c.parsed.y.toFixed(2)}` } } },
+                    elements: { point: { radius: 0 }, line: { borderWidth: 1.5, tension: 0.1 } },
+                    animation: false
+                }
+             });
+            // console.log("DEBUG: Chart instance created.");
+        }
+
+        function updatePriceChart(symbol) {
+            // console.log(`DEBUG: Attempting to update chart for ${symbol}`);
+            if (!priceChart) { console.error("Chart not initialized yet."); return; }
+            if (!livePriceData[symbol]) { console.warn(`No data found for ${symbol} in livePriceData.`); return; }
+
+            const dataForChart = livePriceData[symbol];
+            // console.log(`DEBUG: Updating chart with ${dataForChart.length} data points.`);
+            // console.log("DEBUG: Data being sent to chart:", JSON.stringify(dataForChart.slice(-5)));
+
+            priceChart.data.datasets = [{
+                label: symbol,
+                data: dataForChart,
+                borderColor: '#38bdf8',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                fill: true
+            }];
+            priceChart.update('none');
+            // console.log(`DEBUG: Chart update() called for ${symbol}.`);
+        }
+
+        function processLivePriceUpdates(prices) {
+            // console.log("DEBUG: Processing received prices:", prices);
+            const now = new Date();
+            let dataUpdatedForCurrentSymbol = false;
+            for (const symbol in prices) {
+                if (livePriceData.hasOwnProperty(symbol) && typeof prices[symbol] === 'number' && prices[symbol] > 0) {
+                    livePriceData[symbol].push({ x: now.getTime(), y: prices[symbol] });
+                    if (livePriceData[symbol].length > MAX_CHART_POINTS) {
+                        livePriceData[symbol].shift();
+                    }
+                    if (symbol === currentChartSymbol) {
+                        dataUpdatedForCurrentSymbol = true;
+                    }
+                } else {
+                     // console.warn(`DEBUG: Skipping invalid price for ${symbol}:`, prices[symbol]);
+                }
+            }
+            // console.log(`DEBUG: Data updated for current symbol (${currentChartSymbol})? ${dataUpdatedForCurrentSymbol}`);
+            return dataUpdatedForCurrentSymbol;
+        }
+
+        function displayLivePricesText(prices) {
+            const displayDiv = document.getElementById('livePricesDisplay');
+            if (!displayDiv) return;
+            if (Object.keys(prices).length === 0) {
+                 displayDiv.innerHTML = '<span class="text-slate-500 italic">Waiting for price updates...</span>';
+                 return;
+            }
+            displayDiv.innerHTML = Object.entries(prices)
+                .map(([sym, price]) => `<span class="inline-block mr-3"><span class="font-medium text-slate-400">${sym}:</span> <span class="font-semibold text-slate-100">$${(typeof price === 'number' && price > 0) ? price.toFixed(2) : 'N/A'}</span></span>`)
+                .join('');
+        }
+
+        function fetchLivePrices() {
+            // console.log("DEBUG: Fetching /live_prices...");
+            fetch('/live_prices', { cache: 'no-store' })
+                .then(response => {
+                    // console.log(`DEBUG: /live_prices response status: ${response.status}`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(prices => {
+                    // console.log("DEBUG: /live_prices data received:", prices);
+                    const updated = processLivePriceUpdates(prices);
+                    displayLivePricesText(prices);
+                    if (updated) {
+                        updatePriceChart(currentChartSymbol);
+                    } else {
+                        // console.log("DEBUG: No update needed for current chart symbol.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching live prices:", error);
+                    displayLivePricesText({});
+                });
+        }
+
+        function startLiveDataFetching() {
+             if (liveDataIntervalId) {
+                 // console.log("DEBUG: Live data fetching already running.");
+                 return;
+             }
+             // console.log("DEBUG: Starting live data polling...");
+             initializePriceChart();
+             fetchLivePrices(); // Initial fetch
+             const pollInterval = {{ live_poll_interval_ms }};
+             liveDataIntervalId = setInterval(fetchLivePrices, pollInterval );
+             // console.log(`DEBUG: Polling live prices every ${pollInterval / 1000} seconds.`);
+        }
+
+        // --- Simulated Account Details ---
+        function loadAccountDetails() {
+            const detailsDiv = document.getElementById('accountDetails');
+            const loader = document.getElementById('accountLoader');
+            if (!detailsDiv || !loader) return;
+
+            loader.classList.remove('hidden');
+            detailsDiv.classList.add('hidden');
+
+             fetch('/account_details', { cache: 'no-store' })
+                 .then(response => {
+                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                     return response.json();
+                 })
+                 .then(data => {
+                     if (data && !data.error) {
+                         detailsDiv.innerHTML = `
+                             <p><span class="font-medium text-slate-400 w-32 inline-block">Portfolio Value:</span> <span class="font-semibold text-slate-100">$${data.portfolio_value?.toFixed(2) ?? 'N/A'}</span></p>
+                             <p><span class="font-medium text-slate-400 w-32 inline-block">Cash:</span> <span class="font-semibold text-slate-100">$${data.cash?.toFixed(2) ?? 'N/A'}</span></p>
+                             <p><span class="font-medium text-slate-400 w-32 inline-block">Holdings Value:</span> <span class="font-semibold text-slate-100">$${data.long_market_value?.toFixed(2) ?? 'N/A'}</span></p>
+                             <p><span class="font-medium text-slate-400 w-32 inline-block">Profit/Loss:</span> <span class="font-semibold ${data.profit_loss >= 0 ? 'text-green-400' : 'text-red-400'}">$${data.profit_loss?.toFixed(2) ?? 'N/A'}</span></p>
+                             <hr class="border-slate-700 my-2">
+                             <p><span class="font-medium text-slate-400 w-32 inline-block">Starting Cash:</span> <span class="font-semibold text-slate-400">$${data.starting_cash?.toFixed(2) ?? 'N/A'}</span></p>
+                         `;
+                     } else {
+                         detailsDiv.innerHTML = `<p class="text-red-400 text-center"><i class="fas fa-exclamation-circle mr-1"></i>Error loading portfolio: ${data?.error ?? 'Unknown'}</p>`;
+                     }
+                 })
+                 .catch(error => {
+                     console.error("Error fetching account details:", error);
+                     detailsDiv.innerHTML = `<p class="text-red-400 text-center"><i class="fas fa-exclamation-circle mr-1"></i>Failed to load portfolio details.</p>`;
+                 })
+                 .finally(() => {
+                      loader.classList.add('hidden');
+                      detailsDiv.classList.remove('hidden');
+                 });
+        }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // console.log("DEBUG: DOMContentLoaded event fired.");
+            const liveStockSelect = document.getElementById('live-stock-select');
+            if (liveStockSelect) {
+                 currentChartSymbol = liveStockSelect.value;
+                 // console.log(`DEBUG: Initial chart symbol set to ${currentChartSymbol}`);
+                 liveStockSelect.addEventListener('change', (event) => {
+                    currentChartSymbol = event.target.value;
+                    // console.log(`DEBUG: Chart symbol changed to: ${currentChartSymbol}`);
+                    updatePriceChart(currentChartSymbol);
+                 });
+            } else {
+                // console.error("DEBUG: live-stock-select element not found!");
+            }
+
+            startLiveDataFetching();
+            loadAccountDetails(); // Load simulator details
+
+            const tradeForm = document.getElementById('tradeForm');
+            const analysisResultSection = document.getElementById('analysisResultSection');
+            const analysisLoader = document.getElementById('analysisLoader');
+            const analysisContent = document.getElementById('analysisContent');
+
+            if (tradeForm && analysisResultSection && analysisLoader && analysisContent) {
+                tradeForm.addEventListener('submit', () => {
+                    // console.log("DEBUG: Analyze form submitted.");
+                    analysisResultSection.classList.remove('hidden');
+                    analysisLoader.classList.remove('hidden');
+                    analysisContent.innerHTML = '';
+                });
+            }
+             {% if analysis_result %}
+                 // console.log("DEBUG: Analysis result found on initial load.");
+                 if (analysisLoader) analysisLoader.classList.add('hidden');
+             {% else %}
+                  // console.log("DEBUG: No analysis result on initial load.");
+                  if (analysisContent) analysisContent.innerHTML = '<p class="text-slate-400 text-center py-4">Select a stock and click "Analyze & Decide".</p>';
+             {% endif %}
+
+             // Periodically refresh account details (optional)
+             setInterval(loadAccountDetails, 30000); // Refresh every 30 seconds
+        });
+
+    </script>
+
+</body>
+</html>
+
+
+
+
+

@@ -1,0 +1,34 @@
+    # TradingRobotTeamV2/requirements.txt
+
+    # Core Framework (builds the website)
+    flask
+
+    # Alpaca Trading API (talks to the stock market simulator)
+    # alpaca-trade-api # <-- We can comment this out or remove it later
+
+    # Data Handling & ML (math and robot brains)
+    numpy
+    scikit-learn
+    pandas # Helps organize price data like a spreadsheet
+    yfinance # <-- ADD THIS LINE for Yahoo Finance data
+
+    # News Sentiment Analysis (understands news)
+    # Needs one of these backends:
+    torch
+    # tensorflow # Or uncomment this and comment out torch if you prefer
+    transformers # The main library for understanding text
+
+    # Web Scraping (gets news from websites - can break easily!)
+    requests
+    # beautifulsoup4 # No longer needed if only using NewsAPI
+
+    # Environment Variables (keeps secrets safe)
+    python-dotenv
+
+    # WebSocket Client (gets live prices)
+    # websockets # <-- We can comment this out or remove it later
+
+    # Chart.js Date Adapter Dependency (if using date-fns adapter)
+    # (No pip install needed for this JS part)
+    
+    
