@@ -1,7 +1,12 @@
 # TradingRobotTeamV2/agents/trade_bot_v2.py
+"""
+TradeBot Agent (V2).
+Makes final BUY/SELL/HOLD decisions based on aggregated signals.
+"""
+
 from typing import List, Optional
 import logging
-import numpy as np # Import numpy to handle numpy bool type if needed
+import numpy as np # Import numpy to handle numpy bool type
 
 log = logging.getLogger(__name__)
 
@@ -9,9 +14,17 @@ class TradeBotV2:
     """
     Decides BUY/SELL/HOLD based on PriceBot prediction, NewsBot sentiment,
     and whether the current price is above/below its Simple Moving Average (SMA).
-    Version with fixed boolean checks (using == instead of is).
+    Uses slightly relaxed rules (neutral news doesn't block trades).
+    Uses '== True' / '== False' for robust boolean checking.
     """
     def __init__(self, safety_on: bool = True):
+        """
+        Initializes the TradeBotV2.
+
+        Args:
+            safety_on (bool): If True, uses the primary logic requiring signal alignment.
+                              If False, uses simpler example logic (can be expanded).
+        """
         self.safety_button = "ON" if safety_on else "OFF"
         log.info(f"TradeBotV2 initialized with safety_button={self.safety_button}")
 
@@ -19,107 +32,122 @@ class TradeBotV2:
                price_signal: Optional[int],
                news_signal: Optional[int],
                price_above_sma: Optional[bool], # Can be bool or numpy.bool_
-               recent_prices: List[float]
+               recent_prices: List[float] # Needed for basic price movement check
                ) -> str:
+        """
+        Makes the final trading decision based on input signals.
 
-        # print("\n *** DEBUG: Inside TradeBotV2 decide() function (Fixed Boolean Check) *** \n") # Optional: Keep for one more test run
+        Args:
+            price_signal (Optional[int]): Prediction from PriceBot (1=Up, 0=Down, None=Error).
+            news_signal (Optional[int]): Sentiment from NewsBot (1=Pos, -1=Neg, 0=Neu, None=Error).
+            price_above_sma (Optional[bool]): True if latest price > SMA, False if < SMA, None if N/A.
+            recent_prices (List[float]): List of recent closing prices.
+
+        Returns:
+            str: The trading decision ("BUY", "SELL", or "HOLD").
+        """
         log.debug("--- Entered TradeBotV2 decide() ---")
 
         # --- Input Validation ---
-        # Use 'is None' for checking None type specifically
+        # Check if any required signal is missing (is None)
         if price_signal is None or news_signal is None or price_above_sma is None:
             log.warning("TradeBotV2 received invalid signals (None). Defaulting to HOLD.")
-            # print("--- DEBUG: Returning HOLD due to invalid signals ---")
             return "HOLD"
+        # Check if there are enough prices for basic checks (like price_moved_up)
         if not recent_prices or len(recent_prices) < 2:
              log.warning("TradeBotV2 requires at least 2 recent prices. Defaulting to HOLD.")
-             # print("--- DEBUG: Returning HOLD due to insufficient prices ---")
              return "HOLD"
 
         # --- Decision Logic (Safety ON - Relaxed News Condition) ---
         if self.safety_button == "ON":
+            # Get latest price movement info (mainly for logging context)
             latest_price = recent_prices[-1]
             previous_price = recent_prices[-2]
             price_moved_up = latest_price > previous_price
 
             log.info(f"TradeBotV2 Inputs: PriceSignal={price_signal}, NewsSignal={news_signal}, PriceAboveSMA={price_above_sma}, PriceMovedUp={price_moved_up}")
 
-            # --- FIX: Use '== True' and '== False' for boolean comparison ---
-            # This handles both standard Python bool and numpy.bool_ correctly
-
             # --- Relaxed Buy Conditions ---
+            # PriceBot predicts Up AND News is NOT Negative (Good or Neutral) AND Price is Above SMA
+            # Use '== True' to handle both Python bool and numpy.bool_
             if price_signal == 1 and news_signal >= 0 and price_above_sma == True:
                 log.info("TradeBotV2 Decision: BUY (Signal: PricePred Up, News Good/Neutral, Price > SMA)")
-                # print("--- DEBUG: Returning BUY from Relaxed Buy Condition ---")
                 return "BUY"
 
             # --- Relaxed Sell Conditions ---
+            # PriceBot predicts Down AND News is NOT Positive (Bad or Neutral) AND Price is Below SMA
+            # Use '== False' to handle both Python bool and numpy.bool_
             elif price_signal == 0 and news_signal <= 0 and price_above_sma == False:
                 log.info("TradeBotV2 Decision: SELL (Signal: PricePred Down, News Bad/Neutral, Price < SMA)")
-                # print("--- DEBUG: Returning SELL from Relaxed Sell Condition ---")
                 return "SELL"
 
             # --- Hold if signals conflict or are weak ---
+            # These conditions check for disagreements between signals
             elif price_signal == 1 and price_above_sma == False:
                  log.info("TradeBotV2 Decision: HOLD (Conflicting: PricePred Up, but Price < SMA)")
-                 # print("--- DEBUG: Returning HOLD from Conflicting (Up, <SMA) ---")
                  return "HOLD"
             elif price_signal == 0 and price_above_sma == True:
                  log.info("TradeBotV2 Decision: HOLD (Conflicting: PricePred Down, but Price > SMA)")
-                 # print("--- DEBUG: Returning HOLD from Conflicting (Down, >SMA) ---")
                  return "HOLD"
             elif news_signal == 1 and price_above_sma == False:
                  log.info("TradeBotV2 Decision: HOLD (Conflicting: News Good, but Price < SMA)")
-                 # print("--- DEBUG: Returning HOLD from Conflicting (News Good, <SMA) ---")
                  return "HOLD"
             elif news_signal == -1 and price_above_sma == True:
                   log.info("TradeBotV2 Decision: HOLD (Conflicting: News Bad, but Price > SMA)")
-                  # print("--- DEBUG: Returning HOLD from Conflicting (News Bad, >SMA) ---")
                   return "HOLD"
 
             # --- Default to HOLD ---
+            # If none of the specific BUY, SELL, or conflicting HOLD conditions above were met
             else:
                 log.info("TradeBotV2 Decision: HOLD (No strong BUY/SELL signal alignment or other HOLD condition met)")
-                # print("--- DEBUG: Returning HOLD from Default Else Condition ---")
                 return "HOLD"
 
         # --- Decision Logic (Safety OFF - Example: Simpler Rules) ---
+        # This part only runs if safety_button was set to "OFF" when TradeBotV2 was created
         else: # safety_button == "OFF"
             log.info("TradeBotV2 Decision (Safety OFF): Using simpler rules.")
+            # Buy if PriceBot predicts Up and News isn't negative
             if price_signal == 1 and news_signal >= 0:
-                # print("--- DEBUG: Returning BUY from Safety OFF Condition ---")
                 return "BUY"
+            # Sell if PriceBot predicts Down and News isn't positive
             elif price_signal == 0 and news_signal <= 0:
-                # print("--- DEBUG: Returning SELL from Safety OFF Condition ---")
                 return "SELL"
+            # Hold otherwise
             else:
-                # print("--- DEBUG: Returning HOLD from Safety OFF Condition ---")
                 return "HOLD"
 
-# Example Usage (Keep as is)
+# Example Usage (for testing when running this file directly)
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    bot_v2 = TradeBotV2(safety_on=True)
-    prices = [100, 101, 102, 101, 103]
-    print("\n--- Testing TradeBotV2 (Safety ON) ---")
-    # Use numpy bool for testing the fix
-    above_sma_true_np = np.bool_(True)
-    above_sma_false_np = np.bool_(False)
+    logging.basicConfig(level=logging.INFO) # Setup logging for direct run test
+    bot_test = TradeBotV2(safety_on=True) # Test with safety ON
+    prices_test = [100, 101, 102, 101, 103] # Example price list
 
-    decision1 = bot_v2.decide(price_signal=1, news_signal=1, price_above_sma=above_sma_true_np, recent_prices=prices)
-    print(f"Test 1 (Strong Buy Signal): {decision1}") # Expect BUY
-    decision2 = bot_v2.decide(price_signal=0, news_signal=-1, price_above_sma=above_sma_false_np, recent_prices=prices)
-    print(f"Test 2 (Strong Sell Signal): {decision2}") # Expect SELL
-    decision3 = bot_v2.decide(price_signal=1, news_signal=0, price_above_sma=above_sma_true_np, recent_prices=prices)
-    print(f"Test 3 (Buy Signal, Neutral News): {decision3}") # Expect BUY
-    decision4 = bot_v2.decide(price_signal=0, news_signal=0, price_above_sma=above_sma_false_np, recent_prices=prices)
-    print(f"Test 4 (Sell Signal, Neutral News): {decision4}") # Expect SELL
-    decision5 = bot_v2.decide(price_signal=1, news_signal=1, price_above_sma=above_sma_false_np, recent_prices=prices)
-    print(f"Test 5 (Conflicting SMA): {decision5}") # Expect HOLD
-    decision6 = bot_v2.decide(price_signal=0, news_signal=-1, price_above_sma=above_sma_true_np, recent_prices=prices)
-    print(f"Test 6 (Conflicting SMA): {decision6}") # Expect HOLD
-    decision7 = bot_v2.decide(price_signal=None, news_signal=0, price_above_sma=True, recent_prices=prices)
-    print(f"Test 7 (Invalid Price Signal): {decision7}") # Expect HOLD
+    print("\n--- Testing TradeBotV2 (Safety ON) ---")
+    # Use standard Python bools for testing clarity
+    above_sma_true = True
+    above_sma_false = False
+
+    decision1 = bot_test.decide(price_signal=1, news_signal=1, price_above_sma=above_sma_true, recent_prices=prices_test)
+    print(f"Test 1 (Inputs: P=1, N=1, SMA=T): Expected BUY -> Got {decision1}")
+
+    decision2 = bot_test.decide(price_signal=0, news_signal=-1, price_above_sma=above_sma_false, recent_prices=prices_test)
+    print(f"Test 2 (Inputs: P=0, N=-1, SMA=F): Expected SELL -> Got {decision2}")
+
+    decision3 = bot_test.decide(price_signal=1, news_signal=0, price_above_sma=above_sma_true, recent_prices=prices_test)
+    print(f"Test 3 (Inputs: P=1, N=0, SMA=T): Expected BUY -> Got {decision3}")
+
+    decision4 = bot_test.decide(price_signal=0, news_signal=0, price_above_sma=above_sma_false, recent_prices=prices_test)
+    print(f"Test 4 (Inputs: P=0, N=0, SMA=F): Expected SELL -> Got {decision4}")
+
+    decision5 = bot_test.decide(price_signal=1, news_signal=1, price_above_sma=above_sma_false, recent_prices=prices_test)
+    print(f"Test 5 (Inputs: P=1, N=1, SMA=F): Expected HOLD -> Got {decision5}")
+
+    decision6 = bot_test.decide(price_signal=0, news_signal=-1, price_above_sma=above_sma_true, recent_prices=prices_test)
+    print(f"Test 6 (Inputs: P=0, N=-1, SMA=T): Expected HOLD -> Got {decision6}")
+
+    decision7 = bot_test.decide(price_signal=None, news_signal=0, price_above_sma=True, recent_prices=prices_test)
+    print(f"Test 7 (Inputs: P=None, N=0, SMA=T): Expected HOLD -> Got {decision7}")
+
 
 
 

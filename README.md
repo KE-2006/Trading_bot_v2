@@ -1,103 +1,53 @@
-# Trading Robot Team V2 (Portfolio Project)
+# Trading Robot Team V2 (Portfolio Project - yfinance Version)
 
-This is version 2 of the simple web-based trading bot dashboard built with Flask. It includes improvements to bot logic and UI aesthetics.
-
-**Core Features:**
+This project is a simple web-based trading bot dashboard built with Flask. It demonstrates the integration of:
 
 * **Smarter Agent Bots:**
-    * `PriceBotV2`: Predicts price direction using Logistic Regression with features including recent price changes AND the difference from a Simple Moving Average (SMA).
-    * `NewsBot`: Analyzes news sentiment using a Hugging Face transformer model.
-    * `TradeBotV2`: Makes BUY/SELL/HOLD decisions based on PriceBot, NewsBot, AND whether the price is above/below its SMA.
-* **Alpaca Paper Trading API:** Fetches stock data, manages the paper account, and submits orders.
-* **Live Data:** Uses WebSockets for real-time trade updates.
-* **Flask Web Framework:** Powers the backend and website.
-* **Improved Web Dashboard:** A cleaner, more modern interface using Tailwind CSS to trigger analysis, view results, monitor live prices/charts, see account status, and check the trade log.
+    * `PriceBotV2`: Predicts stock price direction using Logistic Regression with features including recent price changes AND the difference from a Simple Moving Average (SMA).
+    * `NewsBot`: Analyzes sentiment of news headlines using a Hugging Face transformer model (fetched via NewsAPI).
+    * `TradeBotV2`: Makes a BUY/SELL/HOLD decision based on signals from the other bots and the SMA trend.
+* **yfinance Library:** Fetches historical and recent stock price data from Yahoo Finance.
+* **NewsAPI:** Fetches relevant news headlines for sentiment analysis.
+* **Internal Portfolio Simulator:** Tracks fake cash and fake share positions in memory, simulating trades without needing a broker API.
+* **Flask Web Framework:** Provides a web interface (dashboard) to interact with the system.
+* **Improved Web Dashboard:** A cleaner, more modern interface using Tailwind CSS to trigger analysis, view bot decisions, see simulated trade results, monitor "live-ish" prices on a chart, view simulated portfolio status, and check the trade log.
 
-**Disclaimer:** This is a portfolio project for demonstration purposes. The trading logic, while improved, is still simplified and **not suitable for real financial decisions or live trading.** Web scraping is unreliable. Use at your own risk.
+**Disclaimer:** This is a portfolio project for demonstration purposes only. The trading logic is simplified and **not intended for real financial decisions.** Data from yfinance may be delayed. Use at your own risk.
 
 ## Project Structure
 
-Here's how the project folders and files are organized:
+(You can copy the structure below to help create your folders)
 
+```text
 TradingRobotTeamV2/
-├── agents/                 # Folder for the robot "brains"
-│   ├── __init__.py         # Makes 'agents' a Python package
-│   ├── news_bot.py         # Reads news headlines
-│   ├── price_bot_v2.py     # Predicts price using SMA
-│   └── trade_bot_v2.py     # Makes the final decision
-├── utils/                  # Folder for helper code
-│   ├── __init__.py         # Makes 'utils' a Python package
-│   ├── data_fetcher_v2.py  # Gets price/news data
-│   └── trading_logic.py    # Handles Alpaca trading actions
-├── templates/              # Folder for the website's HTML page
-│   └── dashboard_v2.html   # The main dashboard page
-├── .env                    # <-- YOU MUST CREATE THIS FILE for API keys (Keep it secret!)
-├── .gitignore              # Tells Git which files to ignore
-├── app_v2.py               # Main Flask web application code
-├── config.py               # Settings for the project
-├── requirements.txt        # List of tools needed (Python libraries)
-└── trade_log_v2.txt        # Records the robot's actions (created automatically)
-└── venv/                   # Your Python virtual environment (optional)
+├── agents/
+│   ├── __init__.py
+│   ├── news_bot.py
+│   ├── price_bot_v2.py
+│   └── trade_bot_v2.py
+├── utils/
+│   ├── __init__.py
+│   ├── data_fetcher_v2.py
+│   └── portfolio_simulator.py
+├── templates/
+│   └── dashboard_v2.html
+├── .env
+├── .gitignore
+├── app.py
+├── config.py
+├── requirements.txt
+└── trade_log_yf_sim.txt
+└── venv/
+Setup (Easy Steps!)Get the Code: Make sure you have all the correct project files (like app.py, config.py, files in agents/, utils/, templates/) inside a main folder named TradingRobotTeamV2.Open Terminal: Open your command prompt or terminal and use the cd command to go into the TradingRobotTeamV2 folder.cd path/to/your/TradingRobotTeamV2
+(Optional but Recommended) Make a Python Play Area (venv):python -m venv venv
+Activate it:Windows Command Prompt: .\venv\Scripts\activate.batWindows PowerShell: .\venv\Scripts\Activate.ps1 (Use Command Prompt if this gives errors)Mac/Linux: source venv/bin/activate(Look for (venv) at the start of your terminal line).Install Tools: Make sure (venv) is active. Then run:pip install -r requirements.txt
+(This installs Flask, yfinance, requests, transformers, etc.)Add Your Secret NewsAPI Key:Inside your TradingRobotTeamV2 folder, create a file named exactly .env (starts with a dot).Copy and paste this text into the .env file:# TradingRobotTeamV2/.env
+# Get a free key from [https://newsapi.org/](https://newsapi.org/)
+NEWSAPI_KEY=YOUR_NEWSAPI_KEY_HERE
 
-
-## Setup (Easy Steps!)
-
-1.  **Get the Code:** Download or copy all the project files into a new folder named `TradingRobotTeamV2`.
-2.  **Open Terminal:** Open your computer's command prompt or terminal. Use the `cd` command to go inside the `TradingRobotTeamV2` folder you just created.
-    ```bash
-    cd path/to/your/TradingRobotTeamV2
-    ```
-    *(Replace `path/to/your/TradingRobotTeamV2` with the actual path on your computer)*.
-3.  **(Optional but Recommended) Make a Python Play Area:** This keeps the tools for this project separate. In the terminal, run:
-    ```bash
-    python -m venv venv
-    ```
-    Then, turn it on:
-    * **Windows Command Prompt:** `.\venv\Scripts\activate.bat`
-    * **Windows PowerShell:** `.\venv\Scripts\Activate.ps1` (If you get an error, use Command Prompt instead!)
-    * **Mac/Linux:** `source venv/bin/activate`
-    *(You should see `(venv)` at the start of your terminal line if it worked)*.
-4.  **Install Tools:** Make sure your play area `(venv)` is active. Then run:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    *(This downloads Flask, Alpaca tools, the robot brains, etc. It might take a minute!)*
-5.  **Add Your Secret Keys:**
-    * Inside your `TradingRobotTeamV2` folder, create a new file named exactly `.env` (starts with a dot).
-    * Copy and paste this text into the `.env` file:
-        ```dotenv
-        # TradingRobotTeamV2/.env
-        # IMPORTANT: Replace placeholders with your REAL Alpaca PAPER TRADING keys!
-        ALPACA_API_KEY=YOUR_PAPER_API_KEY_HERE
-        ALPACA_SECRET_KEY=YOUR_PAPER_SECRET_KEY_HERE
-        ```
-    * **CRITICAL:** Go to your Alpaca account (**Paper Trading** section), find your API keys, and replace `YOUR_PAPER_API_KEY_HERE` and `YOUR_PAPER_SECRET_KEY_HERE` with your actual keys.
-    * Save the `.env` file. Make sure it's listed in `.gitignore` so you don't share your secrets!
-
-## Run Your Robot Dashboard!
-
-1.  Make sure you are in the `TradingRobotTeamV2` folder in your terminal (and `(venv)` is active if you used it).
-2.  Make sure your `.env` file has your keys.
-3.  Type this command and press Enter:
-    ```bash
-    flask run --port 5001
-    ```
-    *(Using port 5001 just helps avoid conflicts if you have other things running)*.
-4.  Open your web browser (like Chrome, Firefox, or Edge) and go to this address: `http://127.0.0.1:5001`
-
-## How to Use the Dashboard
-
-1.  You'll see the new, cleaner dashboard website.
-2.  In the "Control Panel" card, pick a stock symbol (like AAPL or TSLA) from the dropdown menu.
-3.  Click the blue "Analyze & Decide" button.
-4.  Look at the "Latest Analysis" card:
-    * It shows what the PriceBot and NewsBot think.
-    * It shows the final BUY, SELL, or HOLD decision.
-    * It tells you if a practice trade was sent to your Alpaca paper account.
-5.  Check the "Live Prices & Chart" card to see stock prices update automatically.
-6.  Look at the "Account Status" card to see your paper trading account balance.
-7.  See the history of the robot's actions in the "Trade Log" card.
-
-Have fun experimenting with your improved Trading Robot Team! Remember, it's just for learning and practice.
-
+# Alpaca keys are optional now, but you can leave them if you have them
+# ALPACA_API_KEY=YOUR_PAPER_API_KEY_HERE
+# ALPACA_SECRET_KEY=YOUR_PAPER_SECRET_KEY_HERE
+Go to https://newsapi.org/, sign up for a free key, and replace YOUR_NEWSAPI_KEY_HERE with your actual key.Save the .env file. Make sure it's listed in .gitignore!Run Your Robot Dashboard!Make sure you are in the TradingRobotTeamV2 folder in your terminal (and (venv) is active if you used it).Make sure your .env file has your NewsAPI key.Type this command and press Enter:python -m flask run --port 5001
+(Or just python app.py if flask run gives issues)Open your web browser (like Chrome, Firefox, or Edge) and go to this address: http://127.0.0.1:5001How to Use the DashboardYou'll see the dashboard website.In the "Control Panel" card, pick a stock symbol.Click the blue "Analyze & Decide" button.Look at the "Latest Analysis" card:It shows the signals from PriceBot, NewsBot, and the Price vs SMA check.It shows the final BUY, SELL, or HOLD decision.It tells you if a simulated trade was recorded (e.g., "Simulated BUY...").Check the "Live-ish Prices & Chart" card to see prices update periodically (based on the polling interval in config.py).Look at the "Simulated Portfolio
 
